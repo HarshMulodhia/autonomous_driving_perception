@@ -20,7 +20,7 @@ except ImportError:  # pragma: no cover
     HAS_CV2 = False
 
 
-# Default colour palette (BGR for OpenCV, but stored as RGB tuples)
+# Default colour palette (RGB tuples)
 _DEFAULT_COLORS = [
     (0, 255, 0),    # green
     (255, 0, 0),    # red
