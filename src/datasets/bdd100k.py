@@ -1,9 +1,8 @@
 """BDD100K dataset loader for object detection."""
 
 import json
-import os
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, Optional, Tuple
 
 import numpy as np
 import torch
@@ -61,8 +60,10 @@ def parse_bdd100k_annotations(ann_path: str) -> Dict[str, Dict]:
             labels.append(BDD100K_CLASSES[category])
 
         annotations[filename] = {
-            "boxes": np.array(boxes, dtype=np.float32) if boxes else np.zeros((0, 4), dtype=np.float32),
-            "labels": np.array(labels, dtype=np.int64) if labels else np.zeros(0, dtype=np.int64),
+            "boxes": (np.array(boxes, dtype=np.float32)
+                      if boxes else np.zeros((0, 4), dtype=np.float32)),
+            "labels": (np.array(labels, dtype=np.int64)
+                       if labels else np.zeros(0, dtype=np.int64)),
         }
 
     return annotations
@@ -126,7 +127,11 @@ class BDD100KDataset(Dataset):
 
     def _load_target(self, idx: int) -> Dict:
         filename = self.filenames[idx]
-        ann = self.annotations.get(filename, {"boxes": np.zeros((0, 4), dtype=np.float32), "labels": np.zeros(0, dtype=np.int64)})
+        default_ann = {
+            "boxes": np.zeros((0, 4), dtype=np.float32),
+            "labels": np.zeros(0, dtype=np.int64),
+        }
+        ann = self.annotations.get(filename, default_ann)
         return {
             "boxes": torch.as_tensor(ann["boxes"], dtype=torch.float32),
             "labels": torch.as_tensor(ann["labels"], dtype=torch.int64),

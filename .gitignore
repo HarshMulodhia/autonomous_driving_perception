@@ -1,3 +1,9 @@
+# Data and model outputs
+data/
+outputs/
+wandb/
+runs/
+
 # Conda environments
 .conda/
 conda-meta/
