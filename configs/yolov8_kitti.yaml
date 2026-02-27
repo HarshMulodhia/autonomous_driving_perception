@@ -1,0 +1,6 @@
+path: data/kitti_yolo
+train: images/train
+val: images/val
+
+nc: 3
+names: ['Car', 'Pedestrian', 'Cyclist']
