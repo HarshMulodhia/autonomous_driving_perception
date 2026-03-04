@@ -87,11 +87,10 @@ class Trainer:
             weight_decay=self.config.weight_decay,
         )
 
+        self.lr_scheduler: torch.optim.lr_scheduler.LRScheduler
         if self.config.lr_scheduler_type == "cosine":
-            self.lr_scheduler: torch.optim.lr_scheduler.LRScheduler = (
-                torch.optim.lr_scheduler.CosineAnnealingLR(
-                    self.optimizer, T_max=self.config.epochs,
-                )
+            self.lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+                self.optimizer, T_max=self.config.epochs,
             )
         else:
             self.lr_scheduler = torch.optim.lr_scheduler.StepLR(
@@ -178,7 +177,7 @@ class Trainer:
                 and patience_counter >= self.config.early_stopping_patience
             ):
                 logger.info(
-                    "Early stopping triggered after %d epochs without improvement.",
+                    "Early stopping triggered after %d consecutive epochs of no improvement.",
                     patience_counter,
                 )
                 break
