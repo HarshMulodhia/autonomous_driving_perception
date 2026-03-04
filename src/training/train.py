@@ -1,11 +1,14 @@
 """Training pipeline for object detection models."""
 
+import logging
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
 import torch
 from torch.utils.data import DataLoader, Dataset
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -17,9 +20,14 @@ class TrainingConfig:
         batch_size: Batch size for the data loader.
         learning_rate: Initial learning rate.
         momentum: SGD momentum.
-        weight_decay: L2 regularisation weight.
-        lr_step_size: Epoch interval for LR decay.
-        lr_gamma: Multiplicative LR decay factor.
+        weight_decay: L2 regularisation weight (λ for the penalty term).
+        lr_step_size: Epoch interval for StepLR decay.
+        lr_gamma: Multiplicative LR decay factor (γ).
+        lr_scheduler_type: ``'step'`` for StepLR or ``'cosine'`` for
+            CosineAnnealingLR.
+        grad_clip_norm: Max L2 norm for gradient clipping (0 to disable).
+        early_stopping_patience: Stop after this many epochs without
+            validation improvement (0 to disable).
         device: Device string (``'cuda'`` or ``'cpu'``).
         output_dir: Directory to save checkpoints and logs.
         amp: Whether to use automatic mixed precision.
@@ -33,6 +41,9 @@ class TrainingConfig:
     weight_decay: float = 0.0005
     lr_step_size: int = 7
     lr_gamma: float = 0.1
+    lr_scheduler_type: str = "step"
+    grad_clip_norm: float = 10.0
+    early_stopping_patience: int = 0
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
     output_dir: str = "outputs"
     amp: bool = True
@@ -46,6 +57,9 @@ def _collate_fn(batch: list) -> tuple:
 
 class Trainer:
     """Generic Faster R-CNN / torchvision-style trainer.
+
+    Supports gradient clipping, validation loss tracking, early stopping,
+    and cosine-annealing LR scheduling in addition to the default StepLR.
 
     Args:
         model: A torchvision detection model.
@@ -72,11 +86,20 @@ class Trainer:
             momentum=self.config.momentum,
             weight_decay=self.config.weight_decay,
         )
-        self.lr_scheduler = torch.optim.lr_scheduler.StepLR(
-            self.optimizer,
-            step_size=self.config.lr_step_size,
-            gamma=self.config.lr_gamma,
-        )
+
+        if self.config.lr_scheduler_type == "cosine":
+            self.lr_scheduler: torch.optim.lr_scheduler.LRScheduler = (
+                torch.optim.lr_scheduler.CosineAnnealingLR(
+                    self.optimizer, T_max=self.config.epochs,
+                )
+            )
+        else:
+            self.lr_scheduler = torch.optim.lr_scheduler.StepLR(
+                self.optimizer,
+                step_size=self.config.lr_step_size,
+                gamma=self.config.lr_gamma,
+            )
+
         self.scaler = torch.amp.GradScaler(
             enabled=self.config.amp,
         )
@@ -100,23 +123,65 @@ class Trainer:
             collate_fn=_collate_fn,
         )
 
+        val_loader: Optional[DataLoader] = None
+        if self.val_dataset is not None and len(self.val_dataset) > 0:
+            val_loader = DataLoader(
+                self.val_dataset,
+                batch_size=self.config.batch_size,
+                shuffle=False,
+                num_workers=self.config.num_workers,
+                collate_fn=_collate_fn,
+            )
+
         history: Dict[str, List[float]] = {"train_loss": []}
+        if val_loader is not None:
+            history["val_loss"] = []
+
         best_loss = float("inf")
+        patience_counter = 0
 
         for epoch in range(1, self.config.epochs + 1):
-            loss = self._train_one_epoch(train_loader, epoch)
-            history["train_loss"].append(loss)
+            train_loss = self._train_one_epoch(train_loader, epoch)
+            history["train_loss"].append(train_loss)
             self.lr_scheduler.step()
 
-            if loss < best_loss:
-                best_loss = loss
+            lr = self.optimizer.param_groups[0]["lr"]
+            log_msg = f"Epoch {epoch}/{self.config.epochs}  train_loss={train_loss:.4f}  lr={lr:.6f}"
+
+            # Validation
+            monitor_loss = train_loss
+            if val_loader is not None:
+                val_loss = self._validate(val_loader)
+                history["val_loss"].append(val_loss)
+                monitor_loss = val_loss
+                log_msg += f"  val_loss={val_loss:.4f}"
+
+            logger.info(log_msg)
+
+            # Checkpoint best model
+            if monitor_loss < best_loss:
+                best_loss = monitor_loss
+                patience_counter = 0
                 self._save_checkpoint(
                     os.path.join(self.config.output_dir, "best_model.pth")
                 )
+            else:
+                patience_counter += 1
 
             self._save_checkpoint(
                 os.path.join(self.config.output_dir, "last_model.pth")
             )
+
+            # Early stopping
+            if (
+                self.config.early_stopping_patience > 0
+                and patience_counter >= self.config.early_stopping_patience
+            ):
+                logger.info(
+                    "Early stopping triggered after %d epochs without improvement.",
+                    patience_counter,
+                )
+                break
 
         return history
 
@@ -144,6 +209,14 @@ class Trainer:
 
             self.optimizer.zero_grad()
             self.scaler.scale(losses).backward()
+
+            # Gradient clipping for training stability
+            if self.config.grad_clip_norm > 0:
+                self.scaler.unscale_(self.optimizer)
+                torch.nn.utils.clip_grad_norm_(
+                    self.model.parameters(), self.config.grad_clip_norm,
+                )
+
             self.scaler.step(self.optimizer)
             self.scaler.update()
 
@@ -151,6 +224,23 @@ class Trainer:
 
         avg_loss = total_loss / max(len(loader), 1)
         return avg_loss
+
+    @torch.no_grad()
+    def _validate(self, loader: DataLoader) -> float:
+        """Compute average loss on the validation set."""
+        self.model.train()  # detection models need train mode for loss computation
+        total_loss = 0.0
+        device = self.config.device
+
+        for images, targets in loader:
+            images = [img.to(device) for img in images]
+            targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+
+            loss_dict = self.model(images, targets)
+            losses = sum(loss for loss in loss_dict.values())
+            total_loss += float(losses)
+
+        return total_loss / max(len(loader), 1)
 
     def _save_checkpoint(self, path: str) -> None:
         torch.save(self.model.state_dict(), path)

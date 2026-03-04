@@ -7,6 +7,8 @@ from src.datasets.kitti import parse_kitti_label
 from src.datasets.bdd100k import parse_bdd100k_annotations
 from src.datasets.augmentation import (
     DetectionAugmentation,
+    Normalize,
+    SanitizeTargets,
     ToTensor,
     Compose,
     build_transforms,
@@ -81,11 +83,15 @@ class TestBuildTransforms:
     def test_train_transforms(self):
         t = build_transforms(augment=True)
         assert isinstance(t, Compose)
-        assert len(t.transforms) == 2  # augment + to_tensor
+        assert len(t.transforms) == 3  # sanitize + augment + to_tensor
 
     def test_val_transforms(self):
         t = build_transforms(augment=False)
-        assert len(t.transforms) == 1  # only to_tensor
+        assert len(t.transforms) == 2  # sanitize + to_tensor
+
+    def test_normalize_flag(self):
+        t = build_transforms(augment=False, normalize=True)
+        assert len(t.transforms) == 3  # sanitize + to_tensor + normalize
 
 
 class TestToTensor:
@@ -96,3 +102,35 @@ class TestToTensor:
         tensor_img, _ = ToTensor()(img, target)
         assert isinstance(tensor_img, torch.Tensor)
         assert tensor_img.shape[0] == 3
+
+
+class TestSanitizeTargets:
+    def test_removes_degenerate_boxes(self):
+        from PIL import Image
+        img = Image.fromarray(np.random.randint(0, 255, (50, 50, 3), dtype=np.uint8))
+        target = {
+            "boxes": torch.tensor([[10.0, 10.0, 50.0, 50.0], [20.0, 20.0, 20.0, 30.0]]),
+            "labels": torch.tensor([1, 2]),
+        }
+        _, out = SanitizeTargets()(img, target)
+        assert out["boxes"].shape[0] == 1
+        assert out["labels"][0] == 1
+
+    def test_empty_boxes_passthrough(self):
+        from PIL import Image
+        img = Image.fromarray(np.random.randint(0, 255, (50, 50, 3), dtype=np.uint8))
+        target = {
+            "boxes": torch.zeros((0, 4)),
+            "labels": torch.zeros(0, dtype=torch.int64),
+        }
+        _, out = SanitizeTargets()(img, target)
+        assert out["boxes"].shape == (0, 4)
+
+
+class TestNormalize:
+    def test_normalize_output_range(self):
+        tensor_img = torch.rand(3, 50, 50)
+        target = {"boxes": torch.zeros((0, 4)), "labels": torch.zeros(0)}
+        norm = Normalize()
+        out_img, _ = norm(tensor_img, target)
+        assert out_img.shape == tensor_img.shape
