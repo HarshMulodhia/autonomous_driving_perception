@@ -180,10 +180,10 @@ $$
 Ground-truth targets are the inverse:
 
 $$
-t_x^{*} = \frac{g_x - a_x}{a_w},\quad
-t_y^{*} = \frac{g_y - a_y}{a_h},\quad
-t_w^{*} = \ln\frac{g_w}{a_w},\quad
-t_h^{*} = \ln\frac{g_h}{a_h}
+t_x^* = \frac{g_x - a_x}{a_w},\quad
+t_y^* = \frac{g_y - a_y}{a_h},\quad
+t_w^* = \ln\frac{g_w}{a_w},\quad
+t_h^* = \ln\frac{g_h}{a_h}
 $$
 
 ---
