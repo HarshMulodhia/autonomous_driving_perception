@@ -113,11 +113,53 @@ class DetectionAugmentation:
         return image, target
 
 
+class SanitizeTargets:
+    """Remove degenerate boxes (zero or negative area) from targets."""
+
+    def __call__(self, image: Image.Image, target: Dict) -> Tuple[Image.Image, Dict]:
+        boxes = target["boxes"]
+        if boxes.numel() == 0:
+            return image, target
+        widths = boxes[:, 2] - boxes[:, 0]
+        heights = boxes[:, 3] - boxes[:, 1]
+        keep = (widths > 0) & (heights > 0)
+        return image, {
+            **target,
+            "boxes": boxes[keep],
+            "labels": target["labels"][keep],
+        }
+
+
 class ToTensor:
     """Convert a PIL Image to a float32 torch Tensor in ``[0, 1]``."""
 
     def __call__(self, image: Image.Image, target: Dict) -> Tuple[torch.Tensor, Dict]:
         return TF.to_tensor(image), target
+
+
+class Normalize:
+    """Normalize a tensor image with ImageNet channel statistics.
+
+    Applies the transform ``x' = (x - μ) / σ`` per channel, which centres
+    each channel around zero and scales it to unit variance.
+
+    Args:
+        mean: Per-channel means (default: ImageNet).
+        std: Per-channel standard deviations (default: ImageNet).
+    """
+
+    def __init__(
+        self,
+        mean: Tuple[float, ...] = (0.485, 0.456, 0.406),
+        std: Tuple[float, ...] = (0.229, 0.224, 0.225),
+    ) -> None:
+        self.mean = mean
+        self.std = std
+
+    def __call__(
+        self, image: torch.Tensor, target: Dict
+    ) -> Tuple[torch.Tensor, Dict]:
+        return TF.normalize(image, self.mean, self.std), target
 
 
 class Compose:
@@ -138,6 +180,7 @@ def build_transforms(
     color_jitter_prob: float = 0.5,
     min_size: Optional[int] = None,
     max_size: Optional[int] = None,
+    normalize: bool = False,
 ) -> Compose:
     """Build a standard transform pipeline.
 
@@ -147,11 +190,13 @@ def build_transforms(
         color_jitter_prob: Probability of colour jitter (ignored if not augmenting).
         min_size: Optional minimum image dimension.
         max_size: Optional maximum image dimension.
+        normalize: Whether to apply ImageNet normalisation after conversion.
 
     Returns:
         A :class:`Compose` transform.
     """
     transforms: List = []
+    transforms.append(SanitizeTargets())
     if augment:
         transforms.append(
             DetectionAugmentation(
@@ -162,4 +207,6 @@ def build_transforms(
             )
         )
     transforms.append(ToTensor())
+    if normalize:
+        transforms.append(Normalize())
     return Compose(transforms)
