@@ -31,7 +31,7 @@ Given an input image $\mathbf{I} \in \mathbb{R}^{H \times W \times 3}$, the
 object detection task requires predicting a set of detections:
 
 $$
-\mathcal{D} = \bigl\{(b_i,\, c_i,\, s_i)\bigr\}_{i=1}^{N}
+\mathcal{D} = \bigl[(b_i,\, c_i,\, s_i)\bigr]_{i=1}^{N}
 $$
 
 where, for each detection $i$:
