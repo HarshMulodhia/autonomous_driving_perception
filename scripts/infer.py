@@ -17,7 +17,10 @@ Usage::
 """
 
 import argparse
+import logging
 import os
+
+logger = logging.getLogger(__name__)
 
 
 def parse_args() -> argparse.Namespace:
@@ -34,6 +37,17 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
 
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+    logger.info(
+        "Starting inference: model=%s, input=%s, device=%s",
+        args.model, args.input, args.device,
+    )
+
     if args.model == "yolo":
         from src.models.yolo import YOLODetector
         detector = YOLODetector(model_path=args.checkpoint, device_name=args.device)
@@ -47,10 +61,10 @@ def main() -> None:
 
     if os.path.isdir(args.input):
         results = pipeline.run_on_directory(args.input, output_dir=args.output)
-        print(f"Processed {len(results)} images → {args.output}")
+        logger.info("Processed %d images -> %s", len(results), args.output)
     else:
         results = pipeline.run_on_video(args.input, output_path=args.output)
-        print(f"Processed {len(results)} frames → {args.output}")
+        logger.info("Processed %d frames -> %s", len(results), args.output)
 
 
 if __name__ == "__main__":

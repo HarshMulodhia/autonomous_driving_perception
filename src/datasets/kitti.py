@@ -1,5 +1,6 @@
 """KITTI dataset loader for object detection."""
 
+import logging
 import os
 from pathlib import Path
 from typing import Callable, Dict, Optional, Tuple
@@ -8,6 +9,8 @@ import numpy as np
 import torch
 from PIL import Image
 from torch.utils.data import Dataset
+
+logger = logging.getLogger(__name__)
 
 # KITTI object classes mapped to contiguous IDs
 KITTI_CLASSES = {
@@ -120,6 +123,10 @@ class KITTIDataset(Dataset):
 
         self.img_dir = img_dir
         self.label_dir = label_dir
+        logger.info(
+            "KITTIDataset initialized: split=%s, samples=%d",
+            split, len(self.ids),
+        )
 
     def __len__(self) -> int:
         return len(self.ids)

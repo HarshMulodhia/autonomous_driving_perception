@@ -17,10 +17,10 @@ Usage examples::
 """
 
 import argparse
-import sys, os
-# Ensure project root is on sys.path regardless of how the script is invoked
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import logging
+import sys
 
+logger = logging.getLogger(__name__)
 
 
 def parse_args() -> argparse.Namespace:
@@ -34,11 +34,23 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--imgsz", type=int, default=640)
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--output-dir", default="outputs")
+    parser.add_argument("--log-dir", default=None, help="TensorBoard log directory (default: <output-dir>/logs)")
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+    logger.info(
+        "Starting training: model=%s, dataset=%s, epochs=%d, batch_size=%d, lr=%s, device=%s",
+        args.model, args.dataset, args.epochs, args.batch_size, args.lr, args.device,
+    )
 
     if args.model == "yolo":
         try:
@@ -87,11 +99,12 @@ def main() -> None:
             learning_rate=args.lr,
             device=args.device,
             output_dir=args.output_dir,
+            log_dir=args.log_dir,
         )
         trainer = Trainer(detector.model, train_ds, val_ds, config)
         trainer.train()
 
-    print("Training complete.")
+    logger.info("Training complete.")
 
 
 if __name__ == "__main__":
