@@ -8,6 +8,12 @@ from typing import Dict, List, Optional
 import torch
 from torch.utils.data import DataLoader, Dataset
 
+try:
+    from torch.utils.tensorboard import SummaryWriter
+    HAS_TENSORBOARD = True
+except ImportError:  # pragma: no cover
+    HAS_TENSORBOARD = False
+
 logger = logging.getLogger(__name__)
 
 
@@ -30,6 +36,8 @@ class TrainingConfig:
             validation improvement (0 to disable).
         device: Device string (``'cuda'`` or ``'cpu'``).
         output_dir: Directory to save checkpoints and logs.
+        log_dir: Directory for TensorBoard event files. When *None*,
+            defaults to ``<output_dir>/logs``.
         amp: Whether to use automatic mixed precision.
         num_workers: DataLoader worker count.
     """
@@ -46,6 +54,7 @@ class TrainingConfig:
     early_stopping_patience: int = 0
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
     output_dir: str = "outputs"
+    log_dir: Optional[str] = None
     amp: bool = True
     num_workers: int = 2
 
@@ -103,6 +112,19 @@ class Trainer:
             enabled=self.config.amp,
         )
 
+        # TensorBoard writer
+        self.writer: Optional["SummaryWriter"] = None
+        if HAS_TENSORBOARD:
+            tb_dir = self.config.log_dir or os.path.join(
+                self.config.output_dir, "logs",
+            )
+            self.writer = SummaryWriter(log_dir=tb_dir)
+            logger.info("TensorBoard logging to %s", tb_dir)
+        else:
+            logger.warning(
+                "tensorboard is not installed; skipping TensorBoard logging."
+            )
+
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
@@ -157,6 +179,13 @@ class Trainer:
 
             logger.info(log_msg)
 
+            # TensorBoard logging
+            if self.writer is not None:
+                self.writer.add_scalar("Loss/train", train_loss, epoch)
+                self.writer.add_scalar("LearningRate", lr, epoch)
+                if val_loader is not None:
+                    self.writer.add_scalar("Loss/val", val_loss, epoch)
+
             # Checkpoint best model
             if monitor_loss < best_loss:
                 best_loss = monitor_loss
@@ -181,6 +210,9 @@ class Trainer:
                     patience_counter,
                 )
                 break
+
+        if self.writer is not None:
+            self.writer.close()
 
         return history
 

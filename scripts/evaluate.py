@@ -27,7 +27,28 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--conf", type=float, default=0.25)
     parser.add_argument("--imgsz", type=int, default=640)
     parser.add_argument("--output-dir", default="outputs/eval_results")
+    parser.add_argument("--log-dir", default=None, help="TensorBoard log directory for evaluation metrics")
     return parser.parse_args()
+
+
+def _log_to_tensorboard(log_dir: str, model_type: str, metrics_dict: dict) -> None:
+    """Write evaluation metrics to TensorBoard if available."""
+    try:
+        from torch.utils.tensorboard import SummaryWriter
+    except ImportError:
+        logger.warning("tensorboard is not installed; skipping TensorBoard logging.")
+        return
+
+    writer = SummaryWriter(log_dir=log_dir)
+    if model_type == "yolo":
+        for key, value in metrics_dict.items():
+            writer.add_scalar(f"eval/{key}", value, 0)
+    elif model_type == "faster_rcnn":
+        writer.add_scalar("eval/mAP", metrics_dict["mAP"], 0)
+        for cls_id, ap in metrics_dict.get("AP_per_class", {}).items():
+            writer.add_scalar(f"eval/AP_class_{cls_id}", ap, 0)
+    writer.close()
+    logger.info("Evaluation metrics logged to TensorBoard at %s", log_dir)
 
 
 def main() -> None:
@@ -102,6 +123,13 @@ def main() -> None:
         print(json.dumps(metrics, indent=2, default=str))
         with open(os.path.join(args.output_dir, "metrics.json"), "w") as f:
             json.dump(metrics, f, indent=2, default=str)
+
+    # Log evaluation metrics to TensorBoard
+    tb_dir = args.log_dir or os.path.join(args.output_dir, "logs")
+    if args.model == "yolo":
+        _log_to_tensorboard(tb_dir, "yolo", results)
+    elif args.model == "faster_rcnn":
+        _log_to_tensorboard(tb_dir, "faster_rcnn", metrics)
 
     logger.info("Evaluation complete.")
 
