@@ -30,6 +30,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--checkpoint", required=True, help="Path to model weights")
     parser.add_argument("--conf", type=float, default=0.25)
     parser.add_argument("--imgsz", type=int, default=640)
+    parser.add_argument("--device", default="cpu", help="Device for inference (e.g. cuda or cpu)")
     parser.add_argument("--output-dir", default="outputs/eval_results")
     parser.add_argument("--log-dir", default=None, help="TensorBoard log directory for evaluation metrics")
     return parser.parse_args()
@@ -108,14 +109,16 @@ def main() -> None:
             class_names = BDD100K_CLASS_NAMES
 
         detector = FasterRCNNDetector(
-            num_classes=num_classes + 1, device_name="cpu",
+            num_classes=num_classes + 1, device_name=args.device,
             class_names=class_names,
         )
         detector.load_checkpoint(args.checkpoint)
 
         evaluator = DetectionEvaluator(num_classes=num_classes, class_names=class_names)
 
-        for i in range(len(val_ds)):
+        n_images = len(val_ds)
+        log_interval = max(1, n_images // 10)
+        for i in range(n_images):
             image, target = val_ds[i]
             img_np = (image.permute(1, 2, 0).numpy() * 255).astype(np.uint8)
             result = detector.predict(img_np, score_threshold=args.conf)
@@ -123,6 +126,8 @@ def main() -> None:
                 result.boxes, result.scores, result.labels,
                 target["boxes"].numpy(), target["labels"].numpy(),
             )
+            if i == 0 or (i + 1) % log_interval == 0 or (i + 1) == n_images:
+                logger.info("  Evaluated %d/%d images", i + 1, n_images)
 
         metrics = evaluator.evaluate()
         print(json.dumps(metrics, indent=2, default=str))

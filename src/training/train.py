@@ -110,7 +110,7 @@ class Trainer:
             )
 
         self.scaler = torch.amp.GradScaler(
-            enabled=self.config.amp,
+            enabled=self.config.amp and "cuda" in self.config.device,
         )
 
         # TensorBoard writer
@@ -245,14 +245,16 @@ class Trainer:
         device = self.config.device
         n_batches = len(loader)
         log_interval = max(1, n_batches // 10)  # log ~10 times per epoch
+        amp_enabled = self.config.amp and "cuda" in self.config.device
+        amp_device_type = "cuda" if "cuda" in self.config.device else "cpu"
 
         for batch_idx, (images, targets) in enumerate(loader, 1):
             images = [img.to(device) for img in images]
             targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
             with torch.amp.autocast(
-                device_type="cuda",
-                enabled=self.config.amp and "cuda" in self.config.device,
+                device_type=amp_device_type,
+                enabled=amp_enabled,
             ):
                 loss_dict = self.model(images, targets)
                 losses = sum(loss for loss in loss_dict.values())
@@ -272,7 +274,7 @@ class Trainer:
 
             total_loss += float(losses)
 
-            if batch_idx % log_interval == 0 or batch_idx == n_batches:
+            if batch_idx == 1 or batch_idx % log_interval == 0 or batch_idx == n_batches:
                 avg_so_far = total_loss / batch_idx
                 logger.info(
                     "  Epoch %d  [%d/%d]  avg_loss=%.4f",
@@ -289,6 +291,7 @@ class Trainer:
         total_loss = 0.0
         device = self.config.device
         n_batches = len(loader)
+        logger.info("  Running validation (%d batches)...", n_batches)
 
         for batch_idx, (images, targets) in enumerate(loader, 1):
             images = [img.to(device) for img in images]
