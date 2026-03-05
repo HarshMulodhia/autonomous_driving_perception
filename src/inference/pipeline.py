@@ -1,5 +1,6 @@
 """Video and image inference pipeline."""
 
+import logging
 import os
 import time
 from pathlib import Path
@@ -15,6 +16,8 @@ except ImportError:  # pragma: no cover
 
 from src.models.detector import BaseDetector, DetectionResult
 from src.evaluation.visualization import draw_boxes
+
+logger = logging.getLogger(__name__)
 
 
 class InferencePipeline:
@@ -83,6 +86,7 @@ class InferencePipeline:
         for img_file in image_files:
             img_bgr = cv2.imread(str(img_file))
             if img_bgr is None:
+                logger.warning("Could not read image: %s", img_file)
                 continue
             img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
             result = self.run_on_image(img_rgb)
@@ -158,4 +162,5 @@ class InferencePipeline:
         if writer is not None:
             writer.release()
 
+        logger.info("Processed %d video frames from %s", frame_count, video_path)
         return results

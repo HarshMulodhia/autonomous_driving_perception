@@ -12,7 +12,10 @@ Usage::
 
 import argparse
 import json
+import logging
 import os
+
+logger = logging.getLogger(__name__)
 
 
 def parse_args() -> argparse.Namespace:
@@ -30,6 +33,17 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     os.makedirs(args.output_dir, exist_ok=True)
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+    logger.info(
+        "Starting evaluation: model=%s, dataset=%s, checkpoint=%s",
+        args.model, args.dataset, args.checkpoint,
+    )
 
     if args.model == "yolo":
         from ultralytics import YOLO
@@ -89,7 +103,7 @@ def main() -> None:
         with open(os.path.join(args.output_dir, "metrics.json"), "w") as f:
             json.dump(metrics, f, indent=2, default=str)
 
-    print("Evaluation complete.")
+    logger.info("Evaluation complete.")
 
 
 if __name__ == "__main__":

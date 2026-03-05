@@ -1,5 +1,6 @@
 """Faster R-CNN detector wrapper using torchvision."""
 
+import logging
 from typing import Dict, List, Optional
 
 import numpy as np
@@ -8,6 +9,8 @@ from torchvision.models.detection import fasterrcnn_resnet50_fpn
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 
 from .detector import BaseDetector, DetectionResult
+
+logger = logging.getLogger(__name__)
 
 
 class FasterRCNNDetector(BaseDetector):
@@ -37,6 +40,10 @@ class FasterRCNNDetector(BaseDetector):
         self.model.to(self._device)
         self.model.eval()
         self._class_names = class_names
+        logger.info(
+            "Initialized FasterRCNNDetector with %d classes on %s",
+            num_classes, device_name,
+        )
 
     # ------------------------------------------------------------------
     # BaseDetector interface
@@ -78,9 +85,11 @@ class FasterRCNNDetector(BaseDetector):
         return results
 
     def load_checkpoint(self, path: str) -> None:
+        logger.info("Loading checkpoint from %s", path)
         state = torch.load(path, map_location=self._device, weights_only=False)
         self.model.load_state_dict(state)
         self.model.eval()
 
     def save_checkpoint(self, path: str) -> None:
+        logger.info("Saving checkpoint to %s", path)
         torch.save(self.model.state_dict(), path)

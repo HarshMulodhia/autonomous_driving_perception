@@ -2,7 +2,7 @@
 
 import logging
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import torch
@@ -242,4 +242,5 @@ class Trainer:
         return total_loss / max(len(loader), 1)
 
     def _save_checkpoint(self, path: str) -> None:
+        logger.debug("Saving checkpoint to %s", path)
         torch.save(self.model.state_dict(), path)

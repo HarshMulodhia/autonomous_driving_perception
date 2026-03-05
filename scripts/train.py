@@ -17,7 +17,10 @@ Usage examples::
 """
 
 import argparse
+import logging
 import sys
+
+logger = logging.getLogger(__name__)
 
 
 def parse_args() -> argparse.Namespace:
@@ -36,6 +39,17 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+    logger.info(
+        "Starting training: model=%s, dataset=%s, epochs=%d, batch_size=%d, lr=%s, device=%s",
+        args.model, args.dataset, args.epochs, args.batch_size, args.lr, args.device,
+    )
 
     if args.model == "yolo":
         try:
@@ -88,7 +102,7 @@ def main() -> None:
         trainer = Trainer(detector.model, train_ds, val_ds, config)
         trainer.train()
 
-    print("Training complete.")
+    logger.info("Training complete.")
 
 
 if __name__ == "__main__":

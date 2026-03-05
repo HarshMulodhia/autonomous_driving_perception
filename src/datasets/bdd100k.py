@@ -1,6 +1,7 @@
 """BDD100K dataset loader for object detection."""
 
 import json
+import logging
 from pathlib import Path
 from typing import Callable, Dict, Optional, Tuple
 
@@ -8,6 +9,8 @@ import numpy as np
 import torch
 from PIL import Image
 from torch.utils.data import Dataset
+
+logger = logging.getLogger(__name__)
 
 # BDD100K detection categories
 BDD100K_CLASSES = {
@@ -117,6 +120,10 @@ class BDD100KDataset(Dataset):
         # Build list of image files present on disk
         all_files = sorted(img_dir.glob("*.jpg"))
         self.filenames = [f.name for f in all_files]
+        logger.info(
+            "BDD100KDataset initialized: split=%s, samples=%d",
+            split, len(self.filenames),
+        )
 
     def __len__(self) -> int:
         return len(self.filenames)

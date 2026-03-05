@@ -1,8 +1,11 @@
 """Detection evaluation metrics: IoU, AP, mAP, precision/recall."""
 
+import logging
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 
 def compute_iou(box_a: np.ndarray, box_b: np.ndarray) -> float:
@@ -243,6 +246,10 @@ class DetectionEvaluator:
 
     def evaluate(self) -> Dict[str, float]:
         """Compute mAP and per-class metrics."""
+        logger.info(
+            "Evaluating %d images with %d classes",
+            len(self._pred_boxes), self.num_classes,
+        )
         return compute_map(
             self._pred_boxes,
             self._pred_scores,
