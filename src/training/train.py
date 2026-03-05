@@ -246,6 +246,8 @@ class Trainer:
         n_batches = len(loader)
         log_interval = max(1, n_batches // 10)  # log ~10 times per epoch
 
+        logger.info("Epoch %d/%d started", epoch, self.config.epochs)
+
         for batch_idx, (images, targets) in enumerate(loader, 1):
             images = [img.to(device) for img in images]
             targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
@@ -270,9 +272,9 @@ class Trainer:
             self.scaler.step(self.optimizer)
             self.scaler.update()
 
-            total_loss += float(losses)
+            total_loss += losses.detach().item()
 
-            if batch_idx % log_interval == 0 or batch_idx == n_batches:
+            if batch_idx == 1 or batch_idx % log_interval == 0 or batch_idx == n_batches:
                 avg_so_far = total_loss / batch_idx
                 logger.info(
                     "  Epoch %d  [%d/%d]  avg_loss=%.4f",
