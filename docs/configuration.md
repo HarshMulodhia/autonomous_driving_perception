@@ -39,6 +39,8 @@ Faster R-CNN is configured through command-line arguments and the
 | `grad_clip_norm` | 10.0 | Max gradient L2 norm (0 to disable) |
 | `early_stopping_patience` | 0 | Epochs without improvement before stopping (0 to disable) |
 | `device` | `cuda` | `cuda` or `cpu` |
+| `output_dir` | `outputs` | Directory for checkpoints |
+| `log_dir` | `None` | TensorBoard log directory (defaults to `<output_dir>/logs`) |
 | `amp` | `True` | Enable automatic mixed precision |
 | `num_workers` | 2 | DataLoader worker processes |
 
@@ -63,6 +65,7 @@ training:
     gamma: 0.1
   grad_clip_norm: 10.0
   early_stopping_patience: 5
+  log_dir: outputs/faster_rcnn_kitti/logs
 
 augmentation:
   horizontal_flip: 0.5

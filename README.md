@@ -45,6 +45,9 @@ python scripts/evaluate.py --dataset kitti --data-root data/kitti \
 # Run inference on a video
 python scripts/infer.py --input video.mp4 --model faster_rcnn \
     --checkpoint outputs/best_model.pth --output output.mp4
+
+# View training curves in TensorBoard
+tensorboard --logdir outputs/logs
 ```
 
 ## Results
