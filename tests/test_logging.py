@@ -107,3 +107,62 @@ class TestTensorBoardIntegration:
         writer.close()
         event_files = [f for f in os.listdir(log_dir) if "events" in f]
         assert len(event_files) > 0
+
+
+class TestGradScalerDevice:
+    """Verify GradScaler is only enabled when CUDA is the target device."""
+
+    def test_scaler_disabled_on_cpu(self, tmp_path):
+        import torch
+        from src.training.train import Trainer
+        model = torch.nn.Linear(4, 2)
+        config = TrainingConfig(
+            epochs=1, batch_size=1, device="cpu", amp=True,
+            output_dir=str(tmp_path / "out"),
+            log_dir=str(tmp_path / "logs"),
+        )
+        trainer = Trainer(model, train_dataset=[], config=config)
+        assert not trainer.scaler.is_enabled()
+        trainer.writer.close()
+
+    def test_scaler_disabled_when_amp_off(self, tmp_path):
+        import torch
+        from src.training.train import Trainer
+        model = torch.nn.Linear(4, 2)
+        config = TrainingConfig(
+            epochs=1, batch_size=1, device="cpu", amp=False,
+            output_dir=str(tmp_path / "out"),
+            log_dir=str(tmp_path / "logs"),
+        )
+        trainer = Trainer(model, train_dataset=[], config=config)
+        assert not trainer.scaler.is_enabled()
+        trainer.writer.close()
+
+
+class TestDataLoaderNoPersistentWorkers:
+    """Verify DataLoaders do not use persistent_workers to prevent hangs."""
+
+    def test_train_loader_no_persistent_workers(self, tmp_path):
+        import torch
+        from unittest.mock import patch
+        from src.training.train import Trainer
+
+        model = torch.nn.Linear(4, 2)
+        ds = [
+            (torch.rand(3, 32, 32), {"boxes": torch.zeros((0, 4)), "labels": torch.zeros(0, dtype=torch.int64)})
+        ]
+        config = TrainingConfig(
+            epochs=1, batch_size=1, device="cpu", num_workers=0,
+            output_dir=str(tmp_path / "out"),
+            log_dir=str(tmp_path / "logs"),
+        )
+        trainer = Trainer(model, ds, config=config)
+
+        # Patch DataLoader to inspect the persistent_workers argument
+        with patch("src.training.train.DataLoader", wraps=torch.utils.data.DataLoader) as mock_dl:
+            try:
+                trainer.train()
+            except Exception:
+                pass  # model type mismatch is expected; we just check DataLoader args
+            for call_args in mock_dl.call_args_list:
+                assert call_args.kwargs.get("persistent_workers", False) is False

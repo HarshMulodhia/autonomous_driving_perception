@@ -110,7 +110,7 @@ class Trainer:
             )
 
         self.scaler = torch.amp.GradScaler(
-            enabled=self.config.amp,
+            enabled=self.config.amp and "cuda" in self.config.device,
         )
 
         # TensorBoard writer
@@ -144,7 +144,7 @@ class Trainer:
             num_workers=self.config.num_workers,
             collate_fn=_collate_fn,
             pin_memory=self.config.num_workers > 0 and "cuda" in self.config.device,
-            persistent_workers=self.config.num_workers > 0,
+            persistent_workers=False,
         )
 
         val_loader: Optional[DataLoader] = None
@@ -156,7 +156,7 @@ class Trainer:
                 num_workers=self.config.num_workers,
                 collate_fn=_collate_fn,
                 pin_memory=self.config.num_workers > 0 and "cuda" in self.config.device,
-                persistent_workers=self.config.num_workers > 0,
+                persistent_workers=False,
             )
 
         if "cpu" in self.config.device:
