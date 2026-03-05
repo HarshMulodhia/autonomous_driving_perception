@@ -30,9 +30,9 @@
 Given an input image $\mathbf{I} \in \mathbb{R}^{H \times W \times 3}$, the
 object detection task requires predicting a set of detections:
 
-$$
-\mathcal{D} = \bigl\{(b_i,\, c_i,\, s_i)\bigr\}_{i=1}^{N}
-$$
+```math
+\mathcal{D} = \bigl[(b_i,\, c_i,\, s_i)\bigr]_{i=1}^{N}
+```
 
 where, for each detection $i$:
 
@@ -45,12 +45,12 @@ where, for each detection $i$:
 The goal of training is to learn parameters $\theta$ that minimise a
 multi-task loss combining **localisation** and **classification** terms:
 
-$$
+```math
 \theta^{*} = \arg\min_{\theta}\;
 \frac{1}{N}\sum_{i=1}^{N}
 \bigl[\mathcal{L}_{\text{cls}}(c_i, \hat{c}_i;\theta)
  + \lambda\,\mathcal{L}_{\text{loc}}(b_i, \hat{b}_i;\theta)\bigr]
-$$
+```
 
 where $\lambda$ controls the relative weight of localisation versus
 classification.
@@ -66,20 +66,20 @@ $x_2 > x_1,\; y_2 > y_1$.
 
 **Area:**
 
-$$
+```math
 \text{Area}(b) = (x_2 - x_1)(y_2 - y_1)
-$$
+```
 
 ### 2.2 Centre form
 
 An equivalent parameterisation used inside regression heads:
 
-$$
+```math
 c_x = \frac{x_1 + x_2}{2},\quad
 c_y = \frac{y_1 + y_2}{2},\quad
 w = x_2 - x_1,\quad
 h = y_2 - y_1
-$$
+```
 
 ---
 
@@ -88,20 +88,20 @@ $$
 IoU measures the overlap between a predicted box $B_p$ and a
 ground-truth box $B_g$:
 
-$$
+```math
 \text{IoU}(B_p, B_g)
 = \frac{|B_p \cap B_g|}{|B_p \cup B_g|}
 = \frac{|B_p \cap B_g|}{|B_p| + |B_g| - |B_p \cap B_g|}
-$$
+```
 
 where $|\cdot|$ denotes area. The intersection is computed as:
 
-$$
+```math
 |B_p \cap B_g|
 = \max\bigl(0,\;\min(x_2^p, x_2^g) - \max(x_1^p, x_1^g)\bigr)
 \;\times\;
 \max\bigl(0,\;\min(y_2^p, y_2^g) - \max(y_1^p, y_1^g)\bigr)
-$$
+```
 
 **Properties:**
 
@@ -128,18 +128,18 @@ a set of **anchors** tiled over the feature map.
 At each spatial location $(i, j)$ on a feature map of stride $s$, anchors
 are centred at:
 
-$$
+```math
 c_x = s \cdot j + \frac{s}{2},\qquad
 c_y = s \cdot i + \frac{s}{2}
-$$
+```
 
 For each of $|\mathcal{S}|$ scales and $|\mathcal{R}|$ aspect ratios, the
 anchor dimensions are:
 
-$$
+```math
 w_k = s \cdot s_k \cdot \sqrt{r_k},\qquad
 h_k = s \cdot s_k \;/\; \sqrt{r_k}
-$$
+```
 
 where $s_k \in \mathcal{S}$ and $r_k \in \mathcal{R}$.
 
@@ -147,16 +147,16 @@ where $s_k \in \mathcal{S}$ and $r_k \in \mathcal{R}$.
 
 An anchor $a$ is labelled **positive** if:
 
-$$
+```math
 \text{IoU}(a, g^{*}) \geq \tau_{\text{pos}} \quad (\text{typically } 0.7)
-$$
+```
 
 or it has the highest IoU with any ground-truth box $g^*$. It is
 **negative** if:
 
-$$
+```math
 \max_{g}\;\text{IoU}(a, g) < \tau_{\text{neg}} \quad (\text{typically } 0.3)
-$$
+```
 
 All other anchors are ignored during training.
 
@@ -167,24 +167,24 @@ All other anchors are ignored during training.
 The network predicts **offsets** $(t_x, t_y, t_w, t_h)$ relative to an
 anchor or proposal $(a_x, a_y, a_w, a_h)$:
 
-$$
+```math
 \hat{x} = a_x + t_x \cdot a_w,\qquad
 \hat{y} = a_y + t_y \cdot a_h
-$$
+```
 
-$$
+```math
 \hat{w} = a_w \cdot \exp(t_w),\qquad
 \hat{h} = a_h \cdot \exp(t_h)
-$$
+```
 
 Ground-truth targets are the inverse:
 
-$$
-t_x^{*} = \frac{g_x - a_x}{a_w},\quad
-t_y^{*} = \frac{g_y - a_y}{a_h},\quad
-t_w^{*} = \ln\frac{g_w}{a_w},\quad
-t_h^{*} = \ln\frac{g_h}{a_h}
-$$
+```math
+t_x^* = \frac{g_x - a_x}{a_w},\quad
+t_y^* = \frac{g_y - a_y}{a_h},\quad
+t_w^* = \ln\frac{g_w}{a_w},\quad
+t_h^* = \ln\frac{g_h}{a_h}
+```
 
 ---
 
@@ -200,12 +200,12 @@ Faster R-CNN is a **two-stage** detector comprising:
 
 For $N_{\text{cls}}$ sampled anchors the RPN minimises:
 
-$$
+```math
 \mathcal{L}_{\text{RPN}}
 = \frac{1}{N_{\text{cls}}}\sum_i \mathcal{L}_{\text{cls}}(p_i, p_i^{*})
 + \frac{\lambda}{N_{\text{reg}}}\sum_i p_i^{*}\;
 \text{smooth}_{L_1}(t_i - t_i^{*})
-$$
+```
 
 where $p_i$ is the predicted objectness probability, $p_i^{*} \in \{0, 1\}$
 is the anchor label, and $t_i, t_i^{*}$ are predicted and target box
@@ -220,30 +220,30 @@ avoiding the quantisation errors of RoI Pooling.
 For a proposal mapped to feature coordinates $(x_1', y_1', x_2', y_2')$,
 the output grid of size $G \times G$ samples at:
 
-$$
+```math
 x_{g} = x_1' + \frac{(g_x + 0.5)(x_2' - x_1')}{G},\quad
 y_{g} = y_1' + \frac{(g_y + 0.5)(y_2' - y_1')}{G}
-$$
+```
 
 ### 6.3 Fast R-CNN Head
 
 The classification head applies softmax over $K + 1$ classes (including
 background):
 
-$$
+```math
 p(c \mid \mathbf{f}) = \text{softmax}\bigl(\mathbf{W}_{\text{cls}}\,\mathbf{f} + \mathbf{b}_{\text{cls}}\bigr)
-$$
+```
 
 The regression head predicts class-specific box offsets
 $t^c \in \mathbb{R}^4$ for each foreground class $c$.
 
 ### 6.4 Multi-Task Loss (Fast R-CNN Head)
 
-$$
+```math
 \mathcal{L}_{\text{head}}
 = \mathcal{L}_{\text{cls}}(p, c^{*})
 + \lambda\,[c^{*} \geq 1]\;\text{smooth}_{L_1}(t^{c^{*}}, t^{*})
-$$
+```
 
 where $[c^{*} \geq 1]$ is an Iverson bracket that ignores background
 proposals in the regression term.
@@ -261,17 +261,17 @@ At feature level $\ell$ with stride $s_\ell$, the model outputs per-cell
 offsets $(\sigma(o_x), \sigma(o_y))$ and distances $(l, t, r, b)$ to the
 four sides of the bounding box:
 
-$$
+```math
 \hat{x} = (g_x + \sigma(o_x)) \cdot s_\ell,\qquad
 \hat{y} = (g_y + \sigma(o_y)) \cdot s_\ell
-$$
+```
 
-$$
+```math
 x_1 = \hat{x} - l \cdot s_\ell,\quad
 y_1 = \hat{y} - t \cdot s_\ell,\quad
 x_2 = \hat{x} + r \cdot s_\ell,\quad
 y_2 = \hat{y} + b \cdot s_\ell
-$$
+```
 
 where $\sigma$ is the sigmoid function and $(g_x, g_y)$ is the grid cell
 index.
@@ -282,9 +282,9 @@ YOLOv8 uses **Task-Aligned Assignment** to match predictions to
 ground truths. For a candidate prediction with classification score $s$ and
 IoU $u$ with a ground-truth, the alignment metric is:
 
-$$
+```math
 t = s^{\alpha} \cdot u^{\beta}
-$$
+```
 
 Candidates with the highest $t$ values are assigned as positives.
 
@@ -294,18 +294,18 @@ Rather than regressing a single scalar, YOLOv8 represents each box side
 distance as a discrete probability distribution over $n$ bins
 $\{0, 1, \dots, n-1\}$. The predicted distance is the expectation:
 
-$$
+```math
 \hat{d} = \sum_{i=0}^{n-1} i \cdot P(i)
-$$
+```
 
 The Distribution Focal Loss encourages the distribution to concentrate
 around the target value $y$:
 
-$$
+```math
 \mathcal{L}_{\text{DFL}}(P, y)
 = -\bigl[(y_{\lceil\rceil} - y)\log P(y_{\lfloor\rfloor})
 + (y - y_{\lfloor\rfloor})\log P(y_{\lceil\rceil})\bigr]
-$$
+```
 
 where $y_{\lfloor\rfloor} = \lfloor y \rfloor$ and
 $y_{\lceil\rceil} = \lceil y \rceil$.
@@ -334,10 +334,10 @@ The standard threshold is $\tau_{\text{NMS}} = 0.5$.
 
 ### 9.1 Cross-Entropy Loss (Classification)
 
-$$
+```math
 \mathcal{L}_{\text{CE}}(p, y)
 = -\sum_{c=0}^{K} y_c \log p_c
-$$
+```
 
 where $y$ is the one-hot ground-truth vector and $p$ is the predicted
 probability distribution.
@@ -346,32 +346,32 @@ probability distribution.
 
 For objectness or per-class binary predictions:
 
-$$
+```math
 \mathcal{L}_{\text{BCE}}(z, y)
 = -\bigl[y \log\sigma(z) + (1 - y)\log(1 - \sigma(z))\bigr]
-$$
+```
 
 ### 9.3 Focal Loss
 
 Addresses class imbalance by down-weighting easy examples:
 
-$$
+```math
 \mathcal{L}_{\text{FL}}(p_t)
 = -\alpha_t (1 - p_t)^{\gamma} \log(p_t)
-$$
+```
 
 where $p_t = p$ if $y = 1$ else $1 - p$, $\alpha_t$ is a balancing
 factor, and $\gamma \geq 0$ is the focusing parameter (typically 2.0).
 
 ### 9.4 Smooth L1 Loss (Localisation)
 
-$$
+```math
 \text{smooth}_{L_1}(x) =
 \begin{cases}
 0.5\,x^2 & \text{if } |x| < 1 \\
 |x| - 0.5 & \text{otherwise}
 \end{cases}
-$$
+```
 
 This is less sensitive to outliers than the standard $L_2$ loss and more
 stable than $L_1$ near zero.
@@ -381,12 +381,12 @@ stable than $L_1$ near zero.
 Complete IoU loss adds a distance penalty and an aspect-ratio consistency
 term to the standard IoU loss:
 
-$$
+```math
 \mathcal{L}_{\text{CIoU}}
 = 1 - \text{IoU}
 + \frac{\rho^2(\mathbf{b}_p, \mathbf{b}_g)}{c^2}
 + \alpha v
-$$
+```
 
 where:
 
@@ -405,10 +405,10 @@ where:
 
 For a given confidence threshold and IoU threshold $\tau$:
 
-$$
+```math
 \text{Precision} = \frac{\text{TP}}{\text{TP} + \text{FP}},\qquad
 \text{Recall} = \frac{\text{TP}}{\text{TP} + \text{FN}}
-$$
+```
 
 A predicted box is a **True Positive (TP)** if $\text{IoU}(B_p, B_g)
 \geq \tau$ and it is the highest-scoring match for that ground-truth box.
@@ -425,23 +425,23 @@ curve.
 We use the **all-point interpolation** method. First, the precision is made
 monotonically non-increasing:
 
-$$
+```math
 p_{\text{interp}}(r) = \max_{r' \geq r} p(r')
-$$
+```
 
 Then AP is the area under this interpolated curve:
 
-$$
+```math
 \text{AP} = \sum_{k=0}^{n-1} (r_{k+1} - r_k)\;p_{\text{interp}}(r_{k+1})
-$$
+```
 
 ### 10.4 Mean Average Precision (mAP)
 
 mAP averages AP over all $K$ foreground classes:
 
-$$
+```math
 \text{mAP} = \frac{1}{K}\sum_{c=1}^{K} \text{AP}_c
-$$
+```
 
 We report **mAP@0.5** (IoU threshold 0.5) as the primary metric.
 
@@ -449,9 +449,9 @@ We report **mAP@0.5** (IoU threshold 0.5) as the primary metric.
 
 The harmonic mean of precision and recall:
 
-$$
+```math
 F_1 = \frac{2 \cdot \text{Precision} \cdot \text{Recall}}{\text{Precision} + \text{Recall}}
-$$
+```
 
 ---
 
@@ -464,24 +464,24 @@ $(x, y) \mapsto (W - 1 - x,\; y)$.
 
 Bounding-box coordinates transform as:
 
-$$
+```math
 x_1' = W - x_2,\qquad x_2' = W - x_1,\qquad y_1' = y_1,\qquad y_2' = y_2
-$$
+```
 
 ### 11.2 Resize with Aspect-Ratio Preservation
 
 Given a target minimum dimension $d_{\min}$ and optional maximum dimension
 $d_{\max}$, the scale factor is:
 
-$$
+```math
 s = \frac{d_{\min}}{\min(H, W)}
-$$
+```
 
 If $d_{\max}$ is specified:
 
-$$
+```math
 s = \min\!\left(s,\;\frac{d_{\max}}{\max(H, W)}\right)
-$$
+```
 
 New dimensions: $W' = \lfloor W \cdot s + 0.5 \rfloor$,
 $H' = \lfloor H \cdot s + 0.5 \rfloor$, and all box coordinates scale
@@ -504,18 +504,18 @@ The order of application is randomised to increase diversity.
 
 Degenerate boxes (zero or negative area) are removed before training:
 
-$$
+```math
 \text{keep}_i = \bigl[(x_2^i - x_1^i) > 0\bigr] \;\wedge\; \bigl[(y_2^i - y_1^i) > 0\bigr]
-$$
+```
 
 ### 11.5 ImageNet Normalisation
 
 After conversion to $[0, 1]$ float tensors, optional channel-wise
 normalisation is applied:
 
-$$
+```math
 \hat{I}_c = \frac{I_c - \mu_c}{\sigma_c}
-$$
+```
 
 with ImageNet statistics $\boldsymbol{\mu} = (0.485, 0.456, 0.406)$ and
 $\boldsymbol{\sigma} = (0.229, 0.224, 0.225)$.
@@ -528,13 +528,13 @@ $\boldsymbol{\sigma} = (0.229, 0.224, 0.225)$.
 
 Parameter update at iteration $t$:
 
-$$
+```math
 \mathbf{v}_t = \mu\,\mathbf{v}_{t-1} + \nabla_\theta \mathcal{L}(\theta_{t-1})
-$$
+```
 
-$$
+```math
 \theta_t = \theta_{t-1} - \eta\,\mathbf{v}_t - \eta\,\lambda\,\theta_{t-1}
-$$
+```
 
 where $\eta$ is the learning rate, $\mu$ is the momentum coefficient, and
 $\lambda$ is the weight-decay (L2 regularisation) coefficient.
@@ -543,18 +543,18 @@ $\lambda$ is the weight-decay (L2 regularisation) coefficient.
 
 The learning rate is reduced by a factor $\gamma$ every $T$ epochs:
 
-$$
+```math
 \eta_t = \eta_0 \cdot \gamma^{\lfloor t / T \rfloor}
-$$
+```
 
 ### 12.3 Cosine Annealing
 
 The learning rate follows a cosine schedule over $T_{\max}$ epochs:
 
-$$
+```math
 \eta_t = \eta_{\min} + \frac{1}{2}(\eta_0 - \eta_{\min})
 \Bigl(1 + \cos\!\bigl(\frac{\pi\,t}{T_{\max}}\bigr)\Bigr)
-$$
+```
 
 This provides a smooth decay with warm restarts if combined with periodic
 resets.
@@ -564,13 +564,13 @@ resets.
 To prevent exploding gradients, the parameter-gradient vector is rescaled
 when its L2 norm exceeds a threshold $g_{\max}$:
 
-$$
+```math
 \hat{\mathbf{g}} =
 \begin{cases}
 \mathbf{g} & \text{if } \|\mathbf{g}\|_2 \leq g_{\max} \\[4pt]
 g_{\max} \cdot \dfrac{\mathbf{g}}{\|\mathbf{g}\|_2} & \text{otherwise}
 \end{cases}
-$$
+```
 
 ### 12.5 Early Stopping
 
@@ -591,15 +591,15 @@ gradient accumulation.
 Because float16 has limited dynamic range ($\approx 6 \times 10^{-8}$ to
 $6.5 \times 10^4$), gradients are scaled before the backward pass:
 
-$$
+```math
 \hat{\mathcal{L}} = S \cdot \mathcal{L}
-$$
+```
 
 After `.backward()`, the optimizer unscales the gradients:
 
-$$
+```math
 \hat{\nabla}_\theta = \frac{1}{S}\;\nabla_\theta \hat{\mathcal{L}}
-$$
+```
 
 The scale factor $S$ is dynamically adjusted: increased when no overflow is
 detected and halved upon overflow.
@@ -621,14 +621,14 @@ $\{4, 8, 16, 32\}$ pixels.
 
 Starting from the coarsest level:
 
-$$
+```math
 P_5 = \text{Conv}_{1\times1}(C_5)
-$$
+```
 
-$$
+```math
 P_l = \text{Conv}_{1\times1}(C_l) + \text{Upsample}_{2\times}(P_{l+1}),
 \quad l \in \{2, 3, 4\}
-$$
+```
 
 Each $P_l$ is then passed through a $3\times3$ convolution to reduce
 aliasing. The result is a set of feature maps $\{P_2, P_3, P_4, P_5\}$ all
