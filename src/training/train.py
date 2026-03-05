@@ -2,7 +2,8 @@
 
 import logging
 import os
-from dataclasses import dataclass
+import platform
+from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
 import torch
@@ -56,7 +57,7 @@ class TrainingConfig:
     output_dir: str = "outputs"
     log_dir: Optional[str] = None
     amp: bool = True
-    num_workers: int = 2
+    num_workers: int = field(default_factory=lambda: 0 if platform.system() == "Windows" else 4)
 
 
 def _collate_fn(batch: list) -> tuple:
@@ -142,6 +143,8 @@ class Trainer:
             shuffle=True,
             num_workers=self.config.num_workers,
             collate_fn=_collate_fn,
+            pin_memory=self.config.num_workers > 0 and "cuda" in self.config.device,
+            persistent_workers=self.config.num_workers > 0,
         )
 
         val_loader: Optional[DataLoader] = None
@@ -152,7 +155,21 @@ class Trainer:
                 shuffle=False,
                 num_workers=self.config.num_workers,
                 collate_fn=_collate_fn,
+                pin_memory=self.config.num_workers > 0 and "cuda" in self.config.device,
+                persistent_workers=self.config.num_workers > 0,
             )
+
+        if "cpu" in self.config.device:
+            logger.warning(
+                "Training on CPU — this will be very slow with Faster R-CNN. "
+                "Consider using --device cuda if a GPU is available."
+            )
+
+        n_train = len(train_loader)
+        logger.info(
+            "Starting training loop: %d epochs, %d batches/epoch, device=%s",
+            self.config.epochs, n_train, self.config.device,
+        )
 
         history: Dict[str, List[float]] = {"train_loss": []}
         if val_loader is not None:
@@ -226,8 +243,10 @@ class Trainer:
         self.model.train()
         total_loss = 0.0
         device = self.config.device
+        n_batches = len(loader)
+        log_interval = max(1, n_batches // 10)  # log ~10 times per epoch
 
-        for images, targets in loader:
+        for batch_idx, (images, targets) in enumerate(loader, 1):
             images = [img.to(device) for img in images]
             targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
@@ -253,6 +272,13 @@ class Trainer:
 
             total_loss += float(losses)
 
+            if batch_idx % log_interval == 0 or batch_idx == n_batches:
+                avg_so_far = total_loss / batch_idx
+                logger.info(
+                    "  Epoch %d  [%d/%d]  avg_loss=%.4f",
+                    epoch, batch_idx, n_batches, avg_so_far,
+                )
+
         avg_loss = total_loss / max(len(loader), 1)
         return avg_loss
 
@@ -262,14 +288,21 @@ class Trainer:
         self.model.train()  # detection models need train mode for loss computation
         total_loss = 0.0
         device = self.config.device
+        n_batches = len(loader)
 
-        for images, targets in loader:
+        for batch_idx, (images, targets) in enumerate(loader, 1):
             images = [img.to(device) for img in images]
             targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
             loss_dict = self.model(images, targets)
             losses = sum(loss for loss in loss_dict.values())
             total_loss += float(losses)
+
+            if batch_idx % max(1, n_batches // 5) == 0 or batch_idx == n_batches:
+                logger.info(
+                    "  Val [%d/%d]  avg_loss=%.4f",
+                    batch_idx, n_batches, total_loss / batch_idx,
+                )
 
         return total_loss / max(len(loader), 1)
 

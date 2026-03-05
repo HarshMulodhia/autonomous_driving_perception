@@ -91,7 +91,12 @@ class DetectionAugmentation:
                     image = fn(image, f)
             if self.hue > 0:
                 h = random.uniform(-self.hue, self.hue)
-                image = TF.adjust_hue(image, h)
+                # TF.adjust_hue on PIL images uses np.uint8 arithmetic that
+                # overflows with negative hue factors in newer numpy (>= 1.24).
+                # Converting to a float tensor first avoids the PIL/numpy path.
+                img_tensor = TF.to_tensor(image)
+                img_tensor = TF.adjust_hue(img_tensor, h)
+                image = TF.to_pil_image(img_tensor)
         return image
 
     def _resize(

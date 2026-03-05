@@ -18,7 +18,13 @@ Usage examples::
 
 import argparse
 import logging
-import sys
+import platform
+import sys, os
+
+# Ensure the project root is on the path so ``src.*`` imports work regardless
+# of how the script is invoked (e.g. ``python scripts/train.py`` adds
+# ``scripts/`` to sys.path, not the project root).
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +41,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--output-dir", default="outputs")
     parser.add_argument("--log-dir", default=None, help="TensorBoard log directory (default: <output-dir>/logs)")
+    _default_workers = 0 if platform.system() == "Windows" else 4
+    parser.add_argument("--num-workers", type=int, default=_default_workers,
+                        help=f"DataLoader worker count (default: {_default_workers})")
     return parser.parse_args()
 
 
@@ -100,6 +109,7 @@ def main() -> None:
             device=args.device,
             output_dir=args.output_dir,
             log_dir=args.log_dir,
+            num_workers=args.num_workers,
         )
         trainer = Trainer(detector.model, train_ds, val_ds, config)
         trainer.train()

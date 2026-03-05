@@ -14,6 +14,10 @@ import argparse
 import json
 import logging
 import os
+import sys
+
+# Ensure the project root is on the path so ``src.*`` imports work.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 logger = logging.getLogger(__name__)
 
