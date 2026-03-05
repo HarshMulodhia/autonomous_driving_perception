@@ -115,7 +115,9 @@ def main() -> None:
 
         evaluator = DetectionEvaluator(num_classes=num_classes, class_names=class_names)
 
-        for i in range(len(val_ds)):
+        n_images = len(val_ds)
+        log_interval = max(1, n_images // 10)
+        for i in range(n_images):
             image, target = val_ds[i]
             img_np = (image.permute(1, 2, 0).numpy() * 255).astype(np.uint8)
             result = detector.predict(img_np, score_threshold=args.conf)
@@ -123,6 +125,8 @@ def main() -> None:
                 result.boxes, result.scores, result.labels,
                 target["boxes"].numpy(), target["labels"].numpy(),
             )
+            if (i + 1) % log_interval == 0 or (i + 1) == n_images:
+                logger.info("Evaluated %d/%d images", i + 1, n_images)
 
         metrics = evaluator.evaluate()
         print(json.dumps(metrics, indent=2, default=str))
