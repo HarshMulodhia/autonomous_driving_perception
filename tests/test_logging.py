@@ -55,4 +55,4 @@ class TestEvaluatorLogging:
         )
         with caplog.at_level(logging.INFO, logger="src.evaluation.metrics"):
             evaluator.evaluate()
-        assert any("Evaluating" in msg for msg in caplog.messages)
+        assert any("Evaluating 1 images with 1 classes" in msg for msg in caplog.messages)
