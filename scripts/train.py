@@ -17,7 +17,10 @@ Usage examples::
 """
 
 import argparse
-import sys
+import sys, os
+# Ensure project root is on sys.path regardless of how the script is invoked
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 
 
 def parse_args() -> argparse.Namespace:
