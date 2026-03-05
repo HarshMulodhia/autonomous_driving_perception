@@ -42,7 +42,8 @@ def _log_to_tensorboard(log_dir: str, model_type: str, metrics_dict: dict) -> No
     writer = SummaryWriter(log_dir=log_dir)
     if model_type == "yolo":
         for key, value in metrics_dict.items():
-            writer.add_scalar(f"eval/{key}", value, 0)
+            if isinstance(value, (int, float)):
+                writer.add_scalar(f"eval/{key}", value, 0)
     elif model_type == "faster_rcnn":
         writer.add_scalar("eval/mAP", metrics_dict["mAP"], 0)
         for cls_id, ap in metrics_dict.get("AP_per_class", {}).items():
