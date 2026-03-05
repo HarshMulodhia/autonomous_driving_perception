@@ -162,7 +162,8 @@ class TestDataLoaderNoPersistentWorkers:
         with patch("src.training.train.DataLoader", wraps=torch.utils.data.DataLoader) as mock_dl:
             try:
                 trainer.train()
-            except Exception:
+            except (RuntimeError, TypeError, AttributeError):
                 pass  # model type mismatch is expected; we just check DataLoader args
             for call_args in mock_dl.call_args_list:
-                assert call_args.kwargs.get("persistent_workers", False) is False
+                assert "persistent_workers" in call_args.kwargs
+                assert call_args.kwargs["persistent_workers"] is False
